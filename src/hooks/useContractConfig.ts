@@ -1,11 +1,6 @@
 import { TContractConfig } from 'eth-hooks';
 import { useState, useEffect } from 'react';
 
-/**
- *
- * @param loadAppContracts
- * @returns
- */
 export const useContractConfig = (loadAppContracts: () => Promise<TContractConfig>): TContractConfig => {
   const [contractsConfig, setContractsConfig] = useState<TContractConfig>({});
 

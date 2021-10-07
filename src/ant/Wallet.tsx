@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/restrict-plus-operands */
 import { KeyOutlined, QrcodeOutlined, SendOutlined, WalletOutlined } from '@ant-design/icons';
 import { JsonRpcProvider, Web3Provider } from '@ethersproject/providers';
 import { parseEther } from '@ethersproject/units';
 import { Button, Modal, Spin, Tooltip, Typography } from 'antd';
+import { TEthersProvider } from 'eth-hooks/models';
 import { BytesLike, ethers, Signer } from 'ethers';
 import QR from 'qrcode.react';
 import React, { FC, useContext, useEffect, useState } from 'react';
@@ -199,7 +199,7 @@ export const Wallet: FC<IWalletProps> = (props) => {
                     window.localStorage.setItem('metaPrivateKey_backup' + Date.now(), currentPrivateKey);
                   }
                   const randomWallet = ethers.Wallet.createRandom();
-                  const privateKey = randomWallet.privateKey;
+                  const privateKey = randomWallet._signingKey().privateKey;
                   window.localStorage.setItem('metaPrivateKey', privateKey);
                   window.location.reload();
                 }}>
@@ -282,7 +282,7 @@ export const Wallet: FC<IWalletProps> = (props) => {
     );
   }
 
-  const disableSend = amount == null || toAddress == null || (qr != null && qr !== '');
+  const disableSend = amount == undefined || toAddress == undefined || (qr != undefined && qr != '');
 
   return (
     <span>
@@ -293,7 +293,11 @@ export const Wallet: FC<IWalletProps> = (props) => {
           <div>
             {selectedAddress ? <Address address={selectedAddress} ensProvider={props.ensProvider} /> : <Spin />}
             <div style={{ float: 'right', paddingRight: 25 }}>
-              <Balance address={selectedAddress} dollarMultiplier={props.price} />
+              <Balance
+                address={selectedAddress}
+                provider={props?.signer?.provider as TEthersProvider}
+                dollarMultiplier={props.price}
+              />
             </div>
           </div>
         }
