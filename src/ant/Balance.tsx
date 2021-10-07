@@ -1,12 +1,10 @@
 import { formatEther } from '@ethersproject/units';
 import { useBalance } from 'eth-hooks';
-import { TEthersProvider } from 'eth-hooks/models';
 import { BigNumber } from 'ethers';
 import React, { FC, useState } from 'react';
 
 interface IBalanceProps {
   address: string;
-  provider: TEthersProvider | undefined;
   price?: number;
   balance?: BigNumber;
   dollarMultiplier?: number;
@@ -27,7 +25,7 @@ interface IBalanceProps {
 export const Balance: FC<IBalanceProps> = ({ size = 'short', ...rest }) => {
   const props = { ...rest, size };
   const [dollarMode, setDollarMode] = useState(true);
-  const balance = useBalance(props.provider, props.address);
+  const balance = useBalance(props.address);
 
   let floatBalance = parseFloat('0.00');
 

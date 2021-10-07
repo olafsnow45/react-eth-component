@@ -1,20 +1,22 @@
 import { Button } from 'antd';
-import { TEthersProvider, TEthersUser } from 'eth-hooks/models';
-import React, { FC } from 'react';
+import { CreateEthersModalConnector, useEthersContext } from 'eth-hooks/context';
+import { StaticJsonRpcProvider } from 'ethers/node_modules/@ethersproject/providers';
+import React, { FC, useState } from 'react';
 import { useThemeSwitcher } from 'react-css-theme-switcher';
+import { useDebounce } from 'use-debounce';
+import { useTimeout } from 'usehooks-ts';
 
 import { Address, Balance, Wallet } from '.';
 
 export interface IAccountProps {
-  currentEthersUser: TEthersUser | undefined;
-  mainnetProvider: TEthersProvider | undefined;
-  price: number;
+  mainnetProvider: StaticJsonRpcProvider | undefined;
+  localProvider?: StaticJsonRpcProvider | undefined;
+  createLoginConnector?: CreateEthersModalConnector;
+  account?: string;
   minimized?: boolean;
-  isWeb3ModalUser: boolean;
   fontSize?: number;
-  loadWeb3Modal?: () => void;
-  logoutOfWeb3Modal?: () => void;
   blockExplorer: string;
+  price: number;
 }
 
 /**
@@ -27,7 +29,6 @@ export interface IAccountProps {
   - Provide userProvider={userProvider} to display a wallet
   - Provide mainnetProvider={mainnetProvider} and your address will be replaced by ENS name
               (ex. "0xa870" => "user.eth")
-  - Provide price={price} of ether and get your balance converted to dollars
   - Provide web3Modal={web3Modal}, loadWeb3Modal={loadWeb3Modal}, logoutOfWeb3Modal={logoutOfWeb3Modal}
               to be able to log in/log out to/from existing accounts
   - Provide blockExplorer={blockExplorer}, click on address and get the link
@@ -36,40 +37,60 @@ export interface IAccountProps {
  * @returns (FC)
  */
 export const Account: FC<IAccountProps> = (props: IAccountProps) => {
-  const showLogin = !props.isWeb3ModalUser || props.currentEthersUser?.signer == null;
+  const ethersContext = useEthersContext();
+  const showConnect = !ethersContext.active;
+  const [connecting, setConnecting] = useState(false);
 
-  const logoutButton = (
-    <>
-      {props.logoutOfWeb3Modal && !showLogin && (
-        <Button
-          key="logoutbutton"
-          style={{ verticalAlign: 'top', marginLeft: 8, marginTop: 4 }}
-          shape="round"
-          size="large"
-          onClick={props.logoutOfWeb3Modal}>
-          logout
-        </Button>
-      )}
-    </>
-  );
+  useTimeout(() => setConnecting(false), 5000);
+
+  const [address] = useDebounce(props.account ?? ethersContext.account, 200, {
+    trailing: true,
+  });
+
+  const handleLoginClick = (): void => {
+    if (props.createLoginConnector != null) {
+      const connector = props.createLoginConnector?.();
+      if (connector) {
+        setConnecting(true);
+        ethersContext.openModal(connector);
+      } else {
+        console.warn('A valid EthersModalConnector was not provided');
+      }
+    }
+  };
 
   const loadModalButton = (
     <>
-      {props.loadWeb3Modal && showLogin && (
+      {showConnect && props.createLoginConnector && (
         <Button
+          loading={connecting}
           key="loginbutton"
           style={{ verticalAlign: 'top', marginLeft: 8, marginTop: 4 }}
           shape="round"
           size="large"
-          onClick={props.loadWeb3Modal}>
+          onClick={handleLoginClick}>
           connect
         </Button>
       )}
     </>
   );
 
+  const logoutButton = (
+    <>
+      {!showConnect && props.createLoginConnector && (
+        <Button
+          key="logoutbutton"
+          style={{ verticalAlign: 'top', marginLeft: 8, marginTop: 4 }}
+          shape="round"
+          size="large"
+          onClick={ethersContext.disconnectModal}>
+          logout
+        </Button>
+      )}
+    </>
+  );
+
   const { currentTheme } = useThemeSwitcher();
-  const address = props.currentEthersUser?.address;
 
   const display = props.minimized ? (
     <></>
@@ -85,11 +106,11 @@ export const Account: FC<IAccountProps> = (props: IAccountProps) => {
             blockExplorer={props.blockExplorer}
             minimized={props.minimized}
           />
-          <Balance address={address} provider={props.currentEthersUser?.provider} price={props.price} />
+          <Balance address={address} price={props.price} />
           {props.mainnetProvider && (
             <Wallet
               address={address}
-              signer={props.currentEthersUser?.signer}
+              signer={ethersContext?.signer}
               ensProvider={props.mainnetProvider}
               price={props.price}
               color={currentTheme === 'light' ? '#1890ff' : '#2caad9'}
